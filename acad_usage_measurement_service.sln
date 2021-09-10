@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30621.155
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "acad_usage_measurement_service", "acad_usage_measurement_service.csproj", "{9DC472E6-7871-4E8A-B71E-1D2127FE931E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6104FE93-3422-472E-9813-EBA9FFE69F75}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Debug|x64.ActiveCfg = Debug|x64
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Debug|x64.Build.0 = Debug|x64
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Release|x64.ActiveCfg = Release|x64
+		{9DC472E6-7871-4E8A-B71E-1D2127FE931E}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {86146B7D-7082-4C18-9171-36F58AF699D4}
+	EndGlobalSection
+EndGlobal

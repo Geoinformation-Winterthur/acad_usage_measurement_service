@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Version>2.1.0</Version>
+    <Authors>Edgar Butwilowski</Authors>
+    <Company>Vermessungsamt Winterthur</Company>
+    <Copyright>2021 Vermessungsamt Winterthur</Copyright>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
+    <FileVersion>2.1.0.0</FileVersion>
+    <AssemblyName>acad_usage_measurement_service</AssemblyName>
+    <RootNamespace>acad_usage_measurement_service</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.80" />
+  </ItemGroup>
+
+</Project>
