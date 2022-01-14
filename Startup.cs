@@ -43,25 +43,25 @@ namespace win.acad_usage_measurement
             Configuration = configuration;
 
             // read configuration file values:
-            Startup.acadUserTableName = Configuration["AcadUserTableName"];
-            Startup.userNameColumn = Configuration["UserNameColumn"];
-            Startup.domainNameColumn = Configuration["DomainNameColumn"];
-            Startup.lastPingColumn = Configuration["LastPingColumn"];
-            Startup.userTableName = Configuration["UserTableName"];
-            Startup.userLoginColumn = Configuration["UserLoginColumn"];
-            Startup.userFidOrganisationColumn = Configuration["UserFidOrganisationColumn"];
-            Startup.applicationsTableName = Configuration["ApplicationsTableName"];
-            Startup.appNameColumn = Configuration["AppNameColumn"];
-            Startup.unknownValue = Configuration["UnknownValue"];
-            Startup.usageDataTableName = Configuration["UsageDataTableName"];
-            Startup.dateOfUsageColumn = Configuration["DateOfUsageColumn"];
-            Startup.applicationFidColumn = Configuration["ApplicationFidColumn"];
-            Startup.appVersionColumn = Configuration["AppVersionColumn"];
-            Startup.minutesColumn = Configuration["MinutesColumn"];
-            Startup.organisationTableName = Configuration["OrganisationTableName"];
-            Startup.organisationNameColumn = Configuration["OrganisationNameColumn"];
-            Startup.organisationShortNameColumn = Configuration["OrganisationShortNameColumn"];
-            Startup.organisationFidColumn = Configuration["OrganisationFidColumn"];
+            Startup.acadUserTableName = Configuration["SchemaConfiguration:AcadUserTableName"];
+            Startup.userNameColumn = Configuration["SchemaConfiguration:UserNameColumn"];
+            Startup.domainNameColumn = Configuration["SchemaConfiguration:DomainNameColumn"];
+            Startup.lastPingColumn = Configuration["SchemaConfiguration:LastPingColumn"];
+            Startup.userTableName = Configuration["SchemaConfiguration:UserTableName"];
+            Startup.userLoginColumn = Configuration["SchemaConfiguration:UserLoginColumn"];
+            Startup.userFidOrganisationColumn = Configuration["SchemaConfiguration:UserFidOrganisationColumn"];
+            Startup.applicationsTableName = Configuration["SchemaConfiguration:ApplicationsTableName"];
+            Startup.appNameColumn = Configuration["SchemaConfiguration:AppNameColumn"];
+            Startup.unknownValue = Configuration["SchemaConfiguration:UnknownValue"];
+            Startup.usageDataTableName = Configuration["SchemaConfiguration:UsageDataTableName"];
+            Startup.dateOfUsageColumn = Configuration["SchemaConfiguration:DateOfUsageColumn"];
+            Startup.applicationFidColumn = Configuration["SchemaConfiguration:ApplicationFidColumn"];
+            Startup.appVersionColumn = Configuration["SchemaConfiguration:AppVersionColumn"];
+            Startup.minutesColumn = Configuration["SchemaConfiguration:MinutesColumn"];
+            Startup.organisationTableName = Configuration["SchemaConfiguration:OrganisationTableName"];
+            Startup.organisationNameColumn = Configuration["SchemaConfiguration:OrganisationNameColumn"];
+            Startup.organisationShortNameColumn = Configuration["SchemaConfiguration:OrganisationShortNameColumn"];
+            Startup.organisationFidColumn = Configuration["SchemaConfiguration:OrganisationFidColumn"];
 
 
             string oraUser = Configuration["OraLogin:user"];
