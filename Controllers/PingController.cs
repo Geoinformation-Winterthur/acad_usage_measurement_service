@@ -14,15 +14,37 @@ namespace win.acad_usage_measurement.Controllers
     [ApiController]
     public class PingController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly ILogger<PingController> _logger;
 
-        public PingController(ILogger<HomeController> logger)
+        public PingController(ILogger<PingController> logger)
         {
             _logger = logger;
         }
 
         private static readonly object pingSyncMonitorUpdateLastPing = new object();
         private static readonly object pingSyncMonitorUpdateMinutes = new object();
+
+        // threadsicheres File-Logging (lokal)
+        private static readonly object _fileLogLock = new object();
+        private void LogLocalIssue(string message)
+        {
+            try
+            {
+                var logsDir = System.IO.Path.Combine(AppContext.BaseDirectory, "logs");
+                System.IO.Directory.CreateDirectory(logsDir);
+                var logFile = System.IO.Path.Combine(logsDir, "acad-usage-issues.log");
+                var line = $"[{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffK}] {message}{Environment.NewLine}";
+                lock (_fileLogLock)
+                {
+                    System.IO.File.AppendAllText(logFile, line);
+                }
+            }
+            catch
+            {
+                // bewusst schlucken: lokales Logging darf die API nicht stören
+            }
+        }
+
         // GET /ping?username=test&domainname=test
         [HttpGet]
         public IActionResult Ping(string userName, string domainName, int appCode, string version)
@@ -112,7 +134,7 @@ namespace win.acad_usage_measurement.Controllers
                             }
                         }
                     }
-
+                    
 
                     using (OracleCommand oraComm = oraCon.CreateCommand())
                     {
@@ -127,6 +149,12 @@ namespace win.acad_usage_measurement.Controllers
                             {
                                 orgFid = oraReader.GetInt32(0);
                             }
+                        }
+
+                        // falls keine Organisation gefunden wurde -> lokal loggen
+                        if (orgFid == -1)
+                        {
+                            LogLocalIssue($"Keine Organisation gefunden für Benutzer: '{userName}' @ '{domainName}'");
                         }
 
                         bool isNotInSame10Min = currentDate.Year != lastPingFromDb.Year || currentDate.Month != lastPingFromDb.Month ||
@@ -146,7 +174,7 @@ namespace win.acad_usage_measurement.Controllers
                                 oraComm.CommandText = "SELECT " + Startup.minutesColumn +
                                   " FROM " + Startup.usageDataTableName +
                                   " WHERE " + Startup.organisationFidColumn + "=:organisation_fid" +
-                                  " AND " + Startup.dateOfUsageColumn +"=:datum" +
+                                  " AND " + Startup.dateOfUsageColumn + "=:datum" +
                                   " AND " + Startup.applicationFidColumn + "=:appCode" +
                                   " AND " + Startup.appVersionColumn + "=:version";
                                 oraComm.Parameters.Add(new OracleParameter("organisation_fid", orgFid));
@@ -182,8 +210,8 @@ namespace win.acad_usage_measurement.Controllers
                             oraComm.CommandText = "UPDATE " + Startup.usageDataTableName +
                                 " SET " + Startup.minutesColumn + "= (10 + " + Startup.minutesColumn + ")" +
                                 " WHERE " + Startup.dateOfUsageColumn + "=:datum" +
-                                " AND "+ Startup.organisationFidColumn + "=:orgfid" +
-                                " AND " + Startup.applicationFidColumn + "=:appcode"+
+                                " AND " + Startup.organisationFidColumn + "=:orgfid" +
+                                " AND " + Startup.applicationFidColumn + "=:appcode" +
                                 " AND " + Startup.appVersionColumn + "=:version";
                             oraComm.Parameters.Add(new OracleParameter("datum", currentDateCleared));
                             oraComm.Parameters.Add(new OracleParameter("orgfid", orgFid));
