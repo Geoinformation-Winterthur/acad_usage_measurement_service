@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2021 Vermessungsamt Winterthur. All rights reserved.
+Copyright (c) 2021 Geoinformation Winterthur. All rights reserved.
 Author: Edgar Butwilowski
 
 Python-Port der .NET-API "win.acad_usage_measurement" als Ein-Datei-Skript.
@@ -100,6 +100,9 @@ if not ELK_VERIFY_SSL and urllib3 is not None:
 
 HOSTNAME = os.uname().nodename if hasattr(os, "uname") else os.getenv("COMPUTERNAME", "unknown-host")
 
+# Erkennen, ob wir voraussichtlich unter WSGI (z.B. IIS/wfastcgi) laufen
+RUN_CONTEXT = "wsgi" if os.environ.get("WSGI_HANDLER") else "standalone"
+
 # -----------------------------------------------------------------------------
 # ELK-Logging
 # -----------------------------------------------------------------------------
@@ -123,6 +126,7 @@ def elk_log(level: str, message: str, details: t.Optional[t.List[str]] = None) -
         "message": message,
         "script_dir": str(SCRIPT_PATH.parent),
         "script_file": SCRIPT_PATH.name,
+        "run_context": RUN_CONTEXT,
     }
     if details:
         payload["details"] = details
@@ -170,8 +174,15 @@ lock_update_minutes = threading.Lock()
 app = Flask(__name__)
 
 
+@app.before_first_request
+def _log_startup_on_first_request() -> None:
+    """Wird im WSGI-Betrieb (IIS/wfastcgi) beim ersten Request aufgerufen."""
+    elk_log("INFO", "Service-Start (Flask vor dem ersten Request)")
+
+
 @app.get("/")
 def index():
+    # Unter IIS als Application entspricht dies /adsk_usage_statistics/
     return jsonify({"message": "Service works."})
 
 
@@ -308,5 +319,5 @@ def ping():
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    elk_log("INFO", f"Service-Start auf Port {port}")
+    elk_log("INFO", f"Service-Start im Standalone-Modus auf Port {port}")
     app.run(host="0.0.0.0", port=port)  # Produktiv besser über WSGI/ASGI (gunicorn/uvicorn)
