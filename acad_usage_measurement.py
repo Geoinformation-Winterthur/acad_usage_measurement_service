@@ -218,11 +218,24 @@ def index():
 def ping():
     try:
         # Rohwerte für lokale Logs sichern (personenbezogen nur lokal!)
-        raw_user_name = request.args.get("userName", type=str)
-        raw_domain_name = request.args.get("domainName", type=str)
+        # Case-insensitive Parameter (unterstützt z.B. userName UND username)
+        raw_user_name = (
+            request.args.get("userName", type=str)
+            or request.args.get("username", type=str)
+        )
+        raw_domain_name = (
+            request.args.get("domainName", type=str)
+            or request.args.get("domainname", type=str)
+        )
+        # version kann z.B. "version" oder "Version" heissen
+        version = (
+            request.args.get("version", type=str)
+            or request.args.get("Version", type=str)
+        )
 
-        version = request.args.get("version", type=str)
         app_code = request.args.get("appCode", type=int)
+        if app_code is None:
+            app_code = request.args.get("appcode", type=int)
 
         if not raw_user_name:
             # Keine DB-Operation, daher nur Warnung an ELK
@@ -358,9 +371,15 @@ def ping():
                 con.commit()
 
         # Wenn wir bis hier gekommen sind, wurden alle DB-Operationen erfolgreich durchgeführt.
-        # → Jetzt (und nur dann) eine anonyme Erfolgs-Meldung an ELK schicken.
+        # Jetzt (und nur dann) eine anonyme Erfolgs-Meldung an ELK schicken.
+        org_detail = (
+            f"orgfid={org_fid}"
+            if org_fid != -1
+            else "orgfid=unknown"
+        )
+
         elk_log("INFO", "Ping verarbeitet", [
-            f"orgfid={org_fid}",
+            org_detail,
             f"appCode={app_code}",
             f"version={version}",
             ("new_user" if user_is_new else "existing_user"),
