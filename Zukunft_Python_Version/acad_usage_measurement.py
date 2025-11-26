@@ -4,19 +4,17 @@
 Copyright (c) 2021 Geoinformation Winterthur. All rights reserved.
 Author: Edgar Butwilowski
 
-Python-Port der .NET-API "win.acad_usage_measurement" als Ein-Datei-Skript.
+A web service that makes it possible for admins to centrally measure
+the usage times of AutoCAD installations in a corporate network.
 
 - Webframework: Flask
 - DB-Treiber: python-oracledb (Thin Mode)
-- Logging: Versand an ELK gemäss elk_log()-Beispiel
+- Logging: Versand an ELK
 
 Voraussetzungen (pip):
-    pip install flask python-oracledb requests
-Optional (für lokale Tests ohne validiertes SSL):
-    pip install urllib3
+    pip install flask python-oracledb requests urllib3
 
 Konfiguration: config.ini im gleichen Verzeichnis.
-
 """
 
 from __future__ import annotations
@@ -41,6 +39,12 @@ try:
 except Exception as e:  # pragma: no cover
     print("Fehler: python-oracledb ist nicht installiert. Bitte mit 'pip install python-oracledb' nachinstallieren.")
     raise
+
+# HIER Thick-Mode initialisieren
+try:
+    oracledb.init_oracle_client(lib_dir=r"E:\Oracle\product\19.3.0\client_x64\bin")
+except Exception as e:
+    print(f"Fehler bei init_oracle_client: {e}", file=sys.stderr)
 
 from flask import Flask, jsonify, request, abort, make_response
 
@@ -157,6 +161,14 @@ def elk_log(level: str, message: str, details: t.Optional[t.List[str]] = None) -
         print(f"Warnung: Log-Sendung an ELK fehlgeschlagen: {e}")
 
 
+# Einmaliges Startup-Log im WSGI-Betrieb (z.B. unter IIS/wfastcgi)
+if RUN_CONTEXT == "wsgi":
+    try:
+        elk_log("INFO", "Service-Start (Import im WSGI-Kontext)")
+    except Exception:
+        # Logging darf den Import nicht verhindern
+        pass
+
 # -----------------------------------------------------------------------------
 # Oracle-Verbindung
 # -----------------------------------------------------------------------------
@@ -183,32 +195,24 @@ def get_connection() -> oracledb.Connection:
 
 
 # -----------------------------------------------------------------------------
-# Thread-Synchronisation analog zu C#-Locks
+# Thread-Synchronisation
 # -----------------------------------------------------------------------------
 lock_update_last_ping = threading.Lock()
 lock_update_minutes = threading.Lock()
 
 
 # -----------------------------------------------------------------------------
-# Flask-App & Routen
+# Flask-App und Routen
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
-
-
-@app.before_first_request
-def _log_startup_on_first_request() -> None:
-    """Wird im WSGI-Betrieb (IIS/wfastcgi) beim ersten Request aufgerufen."""
-    elk_log("INFO", "Service-Start (Flask vor dem ersten Request)")
-
+app.url_map.strict_slashes = False
 
 # -----------------------------------------------------------------------------
 # Routen
 # -----------------------------------------------------------------------------
 @app.get("/")
 def index():
-    # Unter IIS als Application entspricht dies /adsk_usage_statistics/
     return jsonify({"message": "Service works."})
-
 
 @app.get("/ping")
 def ping():
@@ -367,6 +371,28 @@ def ping():
         # Fehlerlog an ELK – ohne personenbezogene Daten
         elk_log("ERROR", "Ping fehlgeschlagen", [e.__class__.__name__])
         return make_response(("Internal Server Error", 500))
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def router(path: str):
+    """
+    Zentraler Router für alle Pfade unter IIS.
+    Entscheidet anhand des Pfad-Strings, ob Healthcheck oder Ping.
+    """
+    # Pfad normalisieren: führende/trailing Slashes entfernen
+    norm = path.strip("/")
+
+    # Fälle: Root / Healthcheck
+    if norm == "" or norm == "adsk_usage_statistics_py":
+        return index()
+
+    # Fälle: alles, was auf "ping" endet, an die Ping-Logik weitergeben
+    if norm.endswith("ping"):
+        return ping()
+
+    # Default: ebenfalls Healthcheck zurückgeben
+    return index()
+
 
 
 # -----------------------------------------------------------------------------
