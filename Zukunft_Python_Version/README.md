@@ -7,7 +7,25 @@
 * **Konfiguration über `config.ini`** im gleichen Verzeichnis (Tabellen- und Spaltennamen, Oracle-DSN/Credentials, ELK-URL)
 * **Transaktionen** und **thread-sichere** Abschnitte analog zu `lock(...)` im Original
 
-**Hinweise zum Einsatz**
+## Aufstarten
+
+Linux:
+
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install flask wfastcgi
+```
+
+Windows:
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install flask wfastcgi
+```
+
+## Hinweise zum Einsatz
 
 * Abhängigkeiten: `pip install flask python-oracledb requests`
 * Lokal starten z.B. mit: `python acad_usage_measurement.py` (Port via `PORT`-Env übersteuerbar)
