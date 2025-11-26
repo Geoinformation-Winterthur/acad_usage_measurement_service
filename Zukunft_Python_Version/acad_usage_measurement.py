@@ -51,6 +51,9 @@ SCRIPT_PATH = Path(__file__).resolve()
 CFG = configparser.ConfigParser()
 CFG.read(SCRIPT_PATH.parent / "config.ini")
 
+# Lokales Logfile für fehlerhafte Benutzer-Kürzel (personenbezogene Daten nur hier)
+LOCAL_ISSUE_LOG = SCRIPT_PATH.parent / "adsk_usage_measurement.log"
+
 
 def _cfg_get(section: str, option: str, default: str | None = None, *, required: bool = False) -> str:
     if CFG.has_option(section, option):
@@ -104,15 +107,33 @@ HOSTNAME = os.uname().nodename if hasattr(os, "uname") else os.getenv("COMPUTERN
 RUN_CONTEXT = "wsgi" if os.environ.get("WSGI_HANDLER") else "standalone"
 
 # -----------------------------------------------------------------------------
-# ELK-Logging
+# Lokales Logging für fehlerhafte Benutzer-Kürzel (nicht an ELK senden!)
 # -----------------------------------------------------------------------------
+def log_local_issue(message: str, user_name: str | None = None, domain_name: str | None = None) -> None:
+    """Schreibt personenbezogene Problemfälle in ein lokales Logfile neben dem Skript."""
+    try:
+        ts = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        parts = [ts, message]
+        if user_name is not None:
+            parts.append(f"user={user_name}")
+        if domain_name is not None:
+            parts.append(f"domain={domain_name}")
+        line = " | ".join(parts)
+        with LOCAL_ISSUE_LOG.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception as e:
+        # Nur auf STDERR ausgeben, nicht weiter eskalieren
+        print(f"Warnung: Schreiben ins lokale Logfile fehlgeschlagen: {e}", file=sys.stderr)
 
+
+# -----------------------------------------------------------------------------
+# ELK-Logging (anonymisiert)
+# -----------------------------------------------------------------------------
 def elk_log(level: str, message: str, details: t.Optional[t.List[str]] = None) -> None:
     """Versendet strukturierte Logs an den ELK-Server.
 
-    level: z.B. "INFO", "WARN", "ERROR"
-    message: Kurztext
-    details: Liste mit Zusatzinfos (Strings)
+    Wichtig: Keine personenbezogenen Daten (Login-Kürzel, Domain-Login etc.)
+    in 'details' übergeben.
     """
     environment = (
         "test" if _cfg_get("Oracle", "service_name", "").lower().startswith("tgis") else "production"
@@ -180,6 +201,9 @@ def _log_startup_on_first_request() -> None:
     elk_log("INFO", "Service-Start (Flask vor dem ersten Request)")
 
 
+# -----------------------------------------------------------------------------
+# Routen
+# -----------------------------------------------------------------------------
 @app.get("/")
 def index():
     # Unter IIS als Application entspricht dies /adsk_usage_statistics/
@@ -189,23 +213,33 @@ def index():
 @app.get("/ping")
 def ping():
     try:
-        user_name = request.args.get("userName", type=str)
-        domain_name = request.args.get("domainName", type=str)
+        # Rohwerte für lokale Logs sichern (personenbezogen nur lokal!)
+        raw_user_name = request.args.get("userName", type=str)
+        raw_domain_name = request.args.get("domainName", type=str)
+
         version = request.args.get("version", type=str)
         app_code = request.args.get("appCode", type=int)
 
-        if not user_name:
+        if not raw_user_name:
+            # Keine DB-Operation, daher nur Warnung an ELK
             elk_log("WARN", "Ping: Kein Benutzername übergeben")
             return make_response(("No user name provided", 400))
-        if not domain_name:
-            elk_log("WARN", "Ping: Kein Domänenname übergeben", [user_name])
+
+        if not raw_domain_name:
+            # Benutzer-Kürzel lokal loggen, aber nicht an ELK schicken
+            log_local_issue("Ping ohne Domänenname", user_name=raw_user_name, domain_name=None)
+            elk_log("WARN", "Ping: Kein Domänenname übergeben")
             return make_response(("No domain name provided", 400))
+
         if app_code is None:
-            elk_log("WARN", "Ping: Kein appCode übergeben", [user_name, domain_name])
+            # Ebenfalls lokal mitschreiben, um fehlerhafte Calls nachvollziehen zu können
+            log_local_issue("Ping ohne appCode", user_name=raw_user_name, domain_name=raw_domain_name)
+            elk_log("WARN", "Ping: Kein appCode übergeben")
             return make_response(("No app code provided", 400))
 
-        user_name = user_name.lower()
-        domain_name = domain_name.lower()
+        # Ab hier nur noch mit bereinigten/kleingeschriebenen Werten arbeiten
+        user_name = raw_user_name.lower()
+        domain_name = raw_domain_name.lower()
         version = (version or UNKNOWN_VERSION).lower()
 
         now_local = datetime.now()  # analog zu DateTime.Now in .NET
@@ -242,6 +276,12 @@ def ping():
                             username=user_name, domainname=domain_name, lp=now_local,
                         )
                         user_is_new = True
+                        # Personenbezogenes nur lokal loggen, um neue Benutzer-Kürzel zu erkennen
+                        log_local_issue(
+                            "Neuer Benutzer in TBL_ACAD_USER angelegt",
+                            user_name=user_name,
+                            domain_name=domain_name,
+                        )
                 con.commit()
 
             # 2) Organisation bestimmen
@@ -255,7 +295,18 @@ def ping():
                     org_fid = int(row[0])
                 else:
                     org_fid = -1
-                    elk_log("WARN", "Keine Organisation zum Benutzer gefunden", [user_name, domain_name])
+                    # Benutzer-Kürzel ohne Organisation lokal loggen
+                    log_local_issue(
+                        "Keine Organisation zum Benutzer gefunden",
+                        user_name=user_name,
+                        domain_name=domain_name,
+                    )
+                    # Anonymisierte Info an ELK (ohne Benutzer-Kürzel)
+                    elk_log("WARN", "Keine Organisation zum Benutzer gefunden", [
+                        f"orgfid={org_fid}",
+                        f"appCode={app_code}",
+                        f"version={version}",
+                    ])
 
             # 3) Prüfen, ob ausserhalb des gleichen 10-Minuten-Buckets
             def _same_10min_bucket(a: datetime, b: datetime) -> bool:
@@ -302,15 +353,19 @@ def ping():
                     )
                 con.commit()
 
+        # Wenn wir bis hier gekommen sind, wurden alle DB-Operationen erfolgreich durchgeführt.
+        # → Jetzt (und nur dann) eine anonyme Erfolgs-Meldung an ELK schicken.
         elk_log("INFO", "Ping verarbeitet", [
-            f"user={user_name}", f"domain={domain_name}", f"appCode={app_code}", f"version={version}",
+            f"orgfid={org_fid}",
+            f"appCode={app_code}",
+            f"version={version}",
             ("new_user" if user_is_new else "existing_user"),
         ])
         return ("", 204)  # analog zu Ok() ohne Body
 
     except Exception as e:
-        # Fehlerlog an ELK und 500 zurück
-        elk_log("ERROR", "Ping fehlgeschlagen", [str(e)])
+        # Fehlerlog an ELK – ohne personenbezogene Daten
+        elk_log("ERROR", "Ping fehlgeschlagen", [e.__class__.__name__])
         return make_response(("Internal Server Error", 500))
 
 
