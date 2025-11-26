@@ -1,9 +1,5 @@
 .vs/
-bin/
-obj/
 .editorconfig
-appsettings.json
-appsettings.Development.json
 *.ini
 .venv/
 __pycache__
