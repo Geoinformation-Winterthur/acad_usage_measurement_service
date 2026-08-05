@@ -309,7 +309,7 @@ def ping():
                     username=user_name,
                 )
                 row = cur.fetchone()
-                if row:
+                if row and row[0] is not None:
                     org_fid = int(row[0])
                 else:
                     org_fid = -1
