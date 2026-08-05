@@ -27,6 +27,7 @@ from datetime import datetime, timezone, date
 from pathlib import Path
 import threading
 import configparser
+import traceback
 
 import requests
 try:
@@ -388,7 +389,21 @@ def ping():
 
     except Exception as e:
         # Fehlerlog an ELK – ohne personenbezogene Daten
-        elk_log("ERROR", "Ping fehlgeschlagen", [e.__class__.__name__])
+        traceback_frames = traceback.extract_tb(e.__traceback__)
+        last_frame = traceback_frames[-1] if traceback_frames else None
+
+        details = [
+            f"exception={e.__class__.__name__}",
+            f"error={str(e)[:500]}",
+        ]
+        if last_frame is not None:
+            details.extend([
+                f"function={last_frame.name}",
+                f"file={Path(last_frame.filename).name}",
+                f"line={last_frame.lineno}",
+            ])
+
+        elk_log("ERROR", "Ping fehlgeschlagen", details)
         return make_response(("Internal Server Error", 500))
 
 @app.route("/", defaults={"path": ""})
